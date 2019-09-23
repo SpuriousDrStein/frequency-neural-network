@@ -21,9 +21,10 @@ function FrequencyLayer(input_size, output_size)
 
                 out[i] += (sin(f[i,j] * X[j] + o[i]) / pdiv) * w[i,j] + b[i]
 
-                dlocaly_df[i,j] = (w[i,j] * cos(X[j] * f[i, j] + o[i]) * X[j]) / pdiv
+                dlocaly_df[i,j] = (w[i,j] * cos(X[j] * f[i,j] + o[i]) * X[j]) / pdiv
                 dlocaly_dw[i,j] = sin(X[j] * f[i,j] + o[i]) / pdiv
                 dlocaly_dp[i,j] = (-w[i,j] * sin(X[j] * f[i,j] + o[i]) * 2 * p[i,j]) / (pdiv ^ 2)
+                dlocaly_dlocalX[i,j] = (cos(X[j] * f[i,j] * o[i]) * f[i,j] * w[i,j]) / pdiv
                 dlocaly_do[i] += (w[i,j] * cos(X[j] * f[i,j])) / pdiv
             end
         end
@@ -31,8 +32,7 @@ function FrequencyLayer(input_size, output_size)
     end
 
     function backward!(Δ, lr)
-        println(Δ |> size)
-
+        dpred_dx = zeros(input_size)
         for i in 1:output_size
             b[i] += lr * Δ[i]
             o[i] += lr * Δ[i] * dlocaly_do[i]
@@ -41,8 +41,62 @@ function FrequencyLayer(input_size, output_size)
                 w[i,j] += lr * Δ[i] * dlocaly_dw[i,j]
                 p[i,j] += lr * Δ[i] * dlocaly_dp[i,j]
                 f[i,j] += lr * Δ[i] * dlocaly_df[i,j]
+
+                dpred_dx[j] += lr * dlocaly_dlocalX[i,j]
             end
         end
+        return dpred_dx
+    end
+
+    return forward!, backward!
+end
+
+function BatchNormLayer(in_out_size, batch_size)
+    α = rand(in_out_size, batch_size)
+    β = rand(1, batch_size)
+    ϵ = 0.00001 # to prevent devision by zero
+
+    dlocaly_dα = zeros(in_out_size, batch_size)
+    dlocaly_dlocalX = zeros(in_out_size, batch_size)
+
+    function forward!(X)
+        N = length(X)
+        μ = sum(X) / N
+        σ = sum((X .- μ) .^ 2) / N
+
+        bn = (X .- μ) ./ sqrt(σ + ϵ)
+        y = α .* bn .+ β
+
+        println("μ: ", sqrt(σ + ϵ))
+        println("σ: ", sqrt(σ + ϵ))
+        println("sqrt(σ + ϵ): ", sqrt(σ + ϵ))
+
+        dlocaly_dlocalX .= α .* sqrt(σ + ϵ)
+        dlocaly_dα .= bn
+
+        return y
+    end
+
+    function backward!(dprediction_dlocaly, lr)
+        α .+= lr .* (dprediction_dlocaly .* dlocaly_dα)
+        β .+= lr .* (sum(dprediction_dlocaly; dims=1) ./ in_out_size)
+
+        return dprediction_dlocaly .* dlocaly_dlocalX
+    end
+
+    return forward!, backward!
+end
+
+function ActivationLayer(in_out_size, batch_size, actf, d_actf)
+    dlocaly_dlocalX = zeros(in_out_size, batch_size)
+
+    function forward!(X)
+        dlocaly_dlocalX .= d_actf(X)
+        return actf(X)
+    end
+
+    function backward!(Δ, lr)
+        return Δ .* dlocaly_dlocalX
     end
 
     return forward!, backward!
@@ -61,3 +115,9 @@ function feed_backwards!(d_pred, fb_net::Array; lr=0.006)
     end
     return d_pred
 end
+
+relu(A::Array) = map(a->a * (a>0), A)
+d_relu(A::Array) = map(a->(a>0), A)
+
+sigmoid(A::Array) = 1 ./ (1 .+ exp.(.-A))
+d_sigmoid(A::Array) = sigmoid(A) .* (1 .- sigmoid(A))
