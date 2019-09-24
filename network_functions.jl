@@ -67,9 +67,9 @@ function BatchNormLayer(in_out_size, batch_size)
         bn = (X .- μ) ./ sqrt(σ + ϵ)
         y = α .* bn .+ β
 
-        println("μ: ", sqrt(σ + ϵ))
-        println("σ: ", sqrt(σ + ϵ))
-        println("sqrt(σ + ϵ): ", sqrt(σ + ϵ))
+        # println("μ: ", sqrt(σ + ϵ))
+        # println("σ: ", sqrt(σ + ϵ))
+        # println("sqrt(σ + ϵ): ", sqrt(σ + ϵ))
 
         dlocaly_dlocalX .= α .* sqrt(σ + ϵ)
         dlocaly_dα .= bn

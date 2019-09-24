@@ -1,4 +1,4 @@
-include("model.jl")
+include("network_functions.jl")
 
 using Plots
 using MLDatasets
