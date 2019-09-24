@@ -53,12 +53,6 @@ l8a, dl8a = ActivationLayer(INPUT_SIZE, BATCH_SIZE, sigmoid, d_sigmoid)
 decoder_net_f, decoder_net_b = [l5, l5a, l6, l6a, l7, l7a, l8, l8a], [dl5, dl5a, dl6, dl6a, dl7, dl7a, dl8, dl8a]
 
 
-# loss function + derivative
-mse(x, y) = sum((x.-y).^2) / length(x)
-Δmse(x, y) = 2 .* (x .- y) ./ length(x)
-
-
-
 
 # ::: TRAINING
 runtime_plotting = true
